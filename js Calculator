@@ -1,0 +1,85 @@
+// Simple calculator logic
+(() => {
+  const displayEl = document.getElementById('display');
+  const buttons = Array.from(document.querySelectorAll('.btn'));
+
+  let expr = '';
+
+  function updateDisplay() {
+    displayEl.textContent = expr === '' ? '0' : expr;
+  }
+
+  function appendValue(v) {
+    // prevent multiple leading zeros like "00"
+    if (expr === '0' && v === '0') return;
+    // replace initial zero if a number is entered
+    if (expr === '0' && /[0-9.]/.test(v)) expr = v;
+    else expr += v;
+    updateDisplay();
+  }
+
+  function clearAll() {
+    expr = '';
+    updateDisplay();
+  }
+
+  function deleteLast() {
+    expr = expr.slice(0, -1);
+    updateDisplay();
+  }
+
+  function sanitizeForEval(s) {
+    // allow digits, operators, parentheses, decimal point, spaces, and %
+    if (!/^[0-9+\-*/().%\s]+$/.test(s)) throw new Error('Invalid characters');
+    // convert percentage signs to /100
+    return s.replace(/%/g, '/100');
+  }
+
+  function evaluateExpression() {
+    if (expr.trim() === '') return;
+    try {
+      const safe = sanitizeForEval(expr);
+      // Use Function instead of eval for a slightly safer alternative in this context
+      // (still evaluate-only; this is intended for local use)
+      const result = Function('"use strict";return (' + safe + ')')();
+      if (typeof result === 'number' && isFinite(result)) {
+        expr = String(Number(Math.round(result * 1e12) / 1e12)); // round to avoid floating errors
+      } else {
+        expr = 'Error';
+      }
+    } catch (e) {
+      expr = 'Error';
+    }
+    updateDisplay();
+  }
+
+  // Button clicks
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const val = btn.dataset.value;
+      const action = btn.dataset.action;
+      if (action === 'clear') clearAll();
+      else if (action === 'delete') deleteLast();
+      else if (action === 'equals') evaluateExpression();
+      else if (val) appendValue(val);
+    });
+  });
+
+  // Keyboard support
+  window.addEventListener('keydown', (e) => {
+    const key = e.key;
+    if ((/^[0-9]$/).test(key)) appendValue(key);
+    else if (key === '.') appendValue('.');
+    else if (key === 'Enter' || key === '=') {
+      e.preventDefault();
+      evaluateExpression();
+    } else if (key === 'Backspace') deleteLast();
+    else if (key === 'Escape') clearAll();
+    else if (key === '+' || key === '-' || key === '*' || key === '/') appendValue(key);
+    else if (key === '%') appendValue('%');
+    else if (key === '(' || key === ')') appendValue(key);
+  });
+
+  // initialize
+  updateDisplay();
+})();
