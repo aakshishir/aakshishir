@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AMOLED Clock</title>
+
+<style>
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:#000;
+  color:#0ff;
+  font-family:-apple-system,BlinkMacSystemFont;
+}
+.app{
+  max-width:390px;
+  margin:auto;
+  padding:15px;
+  text-align:center;
+}
+h2{margin:5px 0}
+.time{
+  font-size:2.5rem;
+  margin:10px 0;
+}
+svg{display:block;margin:auto}
+input,button{
+  width:100%;
+  padding:10px;
+  margin-top:8px;
+  border:none;
+  border-radius:14px;
+}
+button{
+  background:#0ff;
+  color:#000;
+  font-weight:600;
+}
+.alarm{
+  display:flex;
+  justify-content:space-between;
+  padding:8px 0;
+  border-bottom:1px solid #0ff3;
+  font-size:0.9rem;
+}
+.island{
+  position:fixed;
+  top:10px;
+  left:50%;
+  transform:translateX(-50%);
+  width:120px;
+  height:36px;
+  background:#000;
+  border-radius:999px;
+  transition:.3s;
+}
+.island.active{
+  width:280px;
+  height:90px;
+  padding:10px;
+  box-shadow:0 0 18px #0ff;
+}
+.island button{
+  margin-top:5px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="island" id="island"></div>
+
+<div class="app">
+  <h2>Clock</h2>
+
+  <!-- ANALOG CLOCK -->
+  <svg width="260" height="260" viewBox="0 0 260 260">
+    <circle cx="130" cy="130" r="120" fill="black" stroke="#0ff" stroke-width="4"/>
+    <g id="marks"></g>
+    <g id="hands"></g>
+  </svg>
+
+  <div class="time" id="digital"></div>
+
+  <input type="time" id="alarmTime">
+  <input placeholder="Alarm label" id="alarmLabel">
+  <button onclick="addAlarm()">Add Alarm</button>
+
+  <div id="alarmList"></div>
+</div>
+
+<script>
+/* ---------- CLOCK ---------- */
+const marks=document.getElementById("marks");
+for(let i=0;i<12;i++){
+  marks.innerHTML+=`
+  <line x1="130" y1="20" x2="130" y2="35"
+    stroke="#0ff" stroke-width="4"
+    transform="rotate(${i*30} 130 130)"/>`;
+}
+
+function updateClock(){
+  const now=new Date();
+  digital.textContent=now.toLocaleTimeString();
+
+  const s=now.getSeconds()*6;
+  const m=now.getMinutes()*6;
+  const h=(now.getHours()%12)*30+m/12;
+
+  hands.innerHTML=`
+    <line x1="130" y1="130" x2="130" y2="80"
+      stroke="#0ff" stroke-width="6"
+      transform="rotate(${h} 130 130)"/>
+    <line x1="130" y1="130" x2="130" y2="60"
+      stroke="#0ff" stroke-width="4"
+      transform="rotate(${m} 130 130)"/>
+    <line x1="130" y1="145" x2="130" y2="45"
+      stroke="red" stroke-width="2"
+      transform="rotate(${s} 130 130)"/>
+    <circle cx="130" cy="130" r="6" fill="#0ff"/>`;
+
+  checkAlarms(now);
+}
+setInterval(updateClock,1000);
+updateClock();
+
+/* ---------- ALARMS ---------- */
+const alarms=[];
+let ringing=null;
+
+const audio=new Audio(
+  "https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg"
+);
+audio.loop=true;
+
+function addAlarm(){
+  if(!alarmTime.value)return;
+  alarms.push({
+    time:alarmTime.value,
+    label:alarmLabel.value||"Alarm"
+  });
+  alarmLabel.value="";
+  renderAlarms();
+}
+
+function renderAlarms(){
+  alarmList.innerHTML=alarms.map(a=>`
+    <div class="alarm">
+      <span>${a.time}</span>
+      <span>${a.label}</span>
+    </div>`).join("");
+}
+
+function checkAlarms(now){
+  const current=now.toTimeString().slice(0,5);
+  alarms.forEach(a=>{
+    if(a.time===current && !ringing){
+      ring(a);
+    }
+  });
+}
+
+/* ---------- RINGING ---------- */
+function ring(alarm){
+  ringing=alarm;
+  audio.play();
+  navigator.vibrate?.([300,200,300]);
+
+  island.classList.add("active");
+  island.innerHTML=`
+    <div>${alarm.label}</div>
+    <button onclick="snooze()">Snooze 5 min</button>
+    <button onclick="stopAlarm()">Stop</button>`;
+}
+
+function stopAlarm(){
+  audio.pause();
+  audio.currentTime=0;
+  island.classList.remove("active");
+  island.innerHTML="";
+  ringing=null;
+}
+
+function snooze(){
+  const t=new Date(Date.now()+5*60000)
+    .toTimeString().slice(0,5);
+  ringing.time=t;
+  stopAlarm();
+}
+</script>
+
+</body>
+</html>
